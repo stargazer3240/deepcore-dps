@@ -1,6 +1,5 @@
 from enum import Enum, auto
 from dataclasses import dataclass
-from typing import NamedTuple
 
 
 @dataclass(frozen=True)
@@ -9,43 +8,9 @@ class Mod:
     description: str
 
 
-@dataclass(frozen=True)
-class ModRow:
-    A: Mod
-    B: Mod
-    C: Mod | None
-
-    def __len__(self) -> int:
-        if self.C:
-            return 3
-        return 2
-
-    def __getitem__(self, mod_number: int) -> Mod:
-        if not isinstance(mod_number, int):
-            raise TypeError("Index must be an int")
-        elif (
-            mod_number < 0 or self.C and mod_number > 2 or not self.C and mod_number > 1
-        ):
-            raise IndexError("Index out of range!")
-
-        if self.C:
-            mods = (self.A, self.B, self.C)
-        else:
-            mods = (self.A, self.B)
-
-        for i, mod in enumerate(mods):
-            if i == mod_number:
-                return mod
-
-        return Mod("", "")
-
-
-class ModTree(NamedTuple):
-    T1: ModRow
-    T2: ModRow
-    T3: ModRow
-    T4: ModRow
-    T5: ModRow
+type ModRow = dict[str, Mod]
+type ModTree = dict[str, ModRow]
+type ModSelection = tuple[Mod | None, Mod | None, Mod | None, Mod | None, Mod | None]
 
 
 class OverclockType(Enum):
@@ -61,17 +26,17 @@ class Overclock:
     description: str
 
 
-@dataclass
-class Build:
-    mod_selection: tuple[Mod, Mod, Mod, Mod, Mod] | None
-    overclock: Overclock | None
-
-
 type OverclockList = (
     tuple[Overclock, Overclock, Overclock, Overclock, Overclock]
     | tuple[Overclock, Overclock, Overclock, Overclock, Overclock, Overclock]
     | tuple[Overclock, Overclock, Overclock, Overclock, Overclock, Overclock, Overclock]
 )
+
+
+@dataclass
+class Build:
+    mod_selection: ModSelection | None
+    overclock: Overclock | None
 
 
 class DeepcoreGK2:
@@ -88,24 +53,24 @@ class DeepcoreGK2:
 
     @staticmethod
     def _init_mod_tree() -> ModTree:
-        tier1_A = Mod("Gyro Stabilisation", "x0 Base Spread")
-        tier1_B = Mod("Supercharged Feed Mechanism", "+1 Rate of Fire")
-        tier1_C = Mod("Quickfire Ejector", "x0.73 Reload Time")
-        tier1 = ModRow(tier1_A, tier1_B, tier1_C)
-        tier2_A = Mod("Increased Caliber Rounds", "+3 Damage")
-        tier2_B = Mod("Expanded Ammo Bags", "+120 Max Ammo")
-        tier2 = ModRow(tier2_A, tier2_B, None)
-        tier3_A = Mod("Floating Barrel", "x0.5 Recoil, -0.65 Max Spread")
-        tier3_B = Mod("High Capacity Magazine", "+10 Magazine Size")
-        tier3 = ModRow(tier3_A, tier3_B, None)
-        tier4_A = Mod("Hollow-Point Bullets", "+20% Weakspot Damage Bonus")
-        tier4_B = Mod("Hardened Rounds", "+500% Armor Break Bonus")
-        tier4 = ModRow(tier4_A, tier4_B, None)
-        tier5_A = Mod("Battle Frenzy", "+Battle Frenzy")
-        tier5_B = Mod("Improved Gas System", "+2 Rate of Fire")
-        tier5_C = Mod("Stun", "+35% Stun Chance")
-        tier5 = ModRow(tier5_A, tier5_B, tier5_C)
-        return ModTree(tier1, tier2, tier3, tier4, tier5)
+        t1_A = Mod("Gyro Stabilisation", "x0 Base Spread")
+        t1_B = Mod("Supercharged Feed Mechanism", "+1 Rate of Fire")
+        t1_C = Mod("Quickfire Ejector", "x0.73 Reload Time")
+        t1 = {"A": t1_A, "B": t1_B, "C": t1_C}
+        t2_A = Mod("Increased Caliber Rounds", "+3 Damage")
+        t2_B = Mod("Expanded Ammo Bags", "+120 Max Ammo")
+        t2 = {"A": t2_A, "B": t2_B}
+        t3_A = Mod("Floating Barrel", "x0.5 Recoil, -0.65 Max Spread")
+        t3_B = Mod("High Capacity Magazine", "+10 Magazine Size")
+        t3 = {"A": t3_A, "B": t3_B}
+        t4_A = Mod("Hollow-Point Bullets", "+20% Weakspot Damage Bonus")
+        t4_B = Mod("Hardened Rounds", "+500% Armor Break Bonus")
+        t4 = {"A": t4_A, "B": t4_B}
+        t5_A = Mod("Battle Frenzy", "+Battle Frenzy")
+        t5_B = Mod("Improved Gas System", "+2 Rate of Fire")
+        t5_C = Mod("Stun", "+35% Stun Chance")
+        t5 = {"A": t5_A, "B": t5_B, "C": t5_C}
+        return {"T1": t1, "T2": t2, "T3": t3, "T4": t4, "T5": t5}
 
     MOD_TREE = _init_mod_tree()
 
@@ -163,37 +128,12 @@ class DeepcoreGK2:
         self._build = Build(None, None)
 
     @staticmethod
-    def _string_to_oc(oc_str: str) -> Overclock:
-        for i, oc in enumerate(DeepcoreGK2.OVERCLOCK_LIST):
-            if i == int(oc_str):
-                return oc
-        return Overclock(None, "", "")
-
-    @staticmethod
-    def _find_mod(row_number: int, mod: str) -> Mod:
-        for i, row in enumerate(DeepcoreGK2.MOD_TREE):
-            if i == row_number:
-                return row[ord(mod) - ord("A")]
-        return Mod("", "")
-
-    @staticmethod
-    def _mods_string_to_tuple(mods: str) -> tuple[Mod, Mod, Mod, Mod, Mod]:
-        out: list[Mod] = []
-        for i, mod in enumerate(mods):
-            out.append(DeepcoreGK2._find_mod(i, mod))
-        return (out[0], out[1], out[2], out[3], out[4])
-
-    @staticmethod
-    def is_overclock_valid(oc: int):
-        return oc >= 1 and oc <= len(DeepcoreGK2.OVERCLOCK_LIST)
+    def is_overclock_valid(oc: str) -> bool:
+        return oc == "-" or int(oc) in range(len(DeepcoreGK2.OVERCLOCK_LIST))
 
     @staticmethod
     def is_mod_valid(mod: str, tier: str) -> bool:
-        i = int(tier[1]) - 1
-        row = DeepcoreGK2.MOD_TREE[i]
-        if len(row) == 2:
-            return mod in {"-", "A", "B"}
-        return mod in {"-", "A", "B", "C"}
+        return mod in DeepcoreGK2.MOD_TREE[tier] or mod == "-"
 
     @staticmethod
     def is_build_valid(build: str) -> bool:
@@ -205,20 +145,41 @@ class DeepcoreGK2:
             for acc, mod in zip(acronyms, build):
                 if acc != "OC" and not DeepcoreGK2.is_mod_valid(mod, acc):
                     raise ValueError(f"Invalid mod in {acc}")
-                elif acc == "OC" and not DeepcoreGK2.is_overclock_valid(int(mod)):
+                elif acc == "OC" and not DeepcoreGK2.is_overclock_valid(mod):
                     raise ValueError("Invalid Overclock number")
         except ValueError as err:
             print(err)
             return False
         return True
 
+    @staticmethod
+    def get_oc(oc: str) -> Overclock | None:
+        if oc == "-":
+            return
+        elif DeepcoreGK2.is_build_valid("-----" + oc):
+            return DeepcoreGK2.OVERCLOCK_LIST[int(oc) - 1]
+
+    @staticmethod
+    def get_mod_selection(mods: str) -> ModSelection | None:
+        if mods == "-----":
+            return None
+        elif DeepcoreGK2.is_build_valid(mods + "-"):
+            out: list[Mod | None] = []
+            tiers = ("T1", "T2", "T3", "T4", "T5")
+            for tier, mod in zip(tiers, mods):
+                if mod == "-":
+                    out.append(None)
+                else:
+                    out.append(DeepcoreGK2.MOD_TREE[tier][mod])
+            return (out[0], out[1], out[2], out[3], out[4])
+
     def change_build(self, build: str) -> None:
         build = build.upper()
         if DeepcoreGK2.is_build_valid(build):
             mods = build[:5]
             oc = build[5:]
-            self._build.mod_selection = DeepcoreGK2._mods_string_to_tuple(mods)
-            self._build.overclock = DeepcoreGK2._string_to_oc(oc)
+            self._build.mod_selection = DeepcoreGK2.get_mod_selection(mods)
+            self._build.overclock = DeepcoreGK2.get_oc(oc)
 
     @property
     def magazine_damage(self) -> float:
