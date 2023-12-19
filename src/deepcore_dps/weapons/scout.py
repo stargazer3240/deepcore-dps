@@ -33,12 +33,6 @@ type OverclockList = (
 )
 
 
-@dataclass
-class Build:
-    mod_selection: ModSelection | None
-    overclock: Overclock | None
-
-
 class DeepcoreGK2:
     NAME = "Deepcore GK2"
     DAMAGE = 16.0
@@ -125,7 +119,8 @@ class DeepcoreGK2:
         self.weakpoint_stun_chance = DeepcoreGK2.WEAKPONT_STUN_CHANCE
         self.base_spread = DeepcoreGK2.BASE_SPREAD
         self.armor_breaking = DeepcoreGK2.ARMOR_BREAKING
-        self._build = Build(None, None)
+        self._overclock = None
+        self._mod_selection = None
 
     @staticmethod
     def is_overclock_valid(oc: str) -> bool:
@@ -153,7 +148,7 @@ class DeepcoreGK2:
         return True
 
     @staticmethod
-    def get_oc(oc: str) -> Overclock | None:
+    def get_overclock(oc: str) -> Overclock | None:
         if oc == "-":
             return
         elif DeepcoreGK2.is_build_valid("-----" + oc):
@@ -173,13 +168,35 @@ class DeepcoreGK2:
                     out.append(DeepcoreGK2.MOD_TREE[tier][mod])
             return (out[0], out[1], out[2], out[3], out[4])
 
-    def change_build(self, build: str) -> None:
+    @property
+    def build(self):
+        build = ""
+        mods = self._mod_selection
+        if mods:
+            tiers = ("T1", "T2", "T3", "T4", "T5")
+            for tier, mod in zip(tiers, mods):
+                for k, v in DeepcoreGK2.MOD_TREE[tier].items():
+                    if v == mod:
+                        build += k
+        else:
+            build = "-----"
+        overclock = self._overclock
+        if overclock:
+            for i, test_oc in enumerate(DeepcoreGK2.OVERCLOCK_LIST, 1):
+                if overclock == test_oc:
+                    build += str(i)
+        else:
+            build += "-"
+        return build
+
+    @build.setter
+    def build(self, build) -> None:
         build = build.upper()
         if DeepcoreGK2.is_build_valid(build):
             mods = build[:5]
             oc = build[5:]
-            self._build.mod_selection = DeepcoreGK2.get_mod_selection(mods)
-            self._build.overclock = DeepcoreGK2.get_oc(oc)
+            self._mod_selection = DeepcoreGK2.get_mod_selection(mods)
+            self._overclock = DeepcoreGK2.get_overclock(oc)
 
     @property
     def magazine_damage(self) -> float:
